@@ -1,5 +1,8 @@
 const rideModel = require('../models/ride.model');
+const captainModel = require('../models/captain.model');
 const mapsService = require('./maps.service');
+const dispatchService = require('./dispatch.service');
+const { sendToUser } = require('../socket');
 const crypto = require('crypto');
 
 function getOtp(num = 4) {
@@ -87,10 +90,104 @@ module.exports.createRide = async ({
         },
         otp,
         fare: selectedFare,
+        vehicleType,
         distance: fareQuotes.distance.value,
         duration: fareQuotes.duration.value,
         status: 'REQUESTED'
     });
 
+    // Populate user details for dispatch context
+    const populatedRide = await rideModel.findById(ride._id).populate('user', '-password');
+
+    // Trigger real-time cascading dispatch engine asynchronously
+    dispatchService.startCascadingDispatch(populatedRide).catch((err) => {
+        console.error('[Dispatch Error]', err.message);
+    });
+
     return ride;
+};
+
+module.exports.confirmRide = async ({ rideId, captainId }) => {
+    if (!rideId || !captainId) {
+        throw new Error('Ride ID and Captain ID are required');
+    }
+    return await dispatchService.acceptOffer({ rideId, captainId });
+};
+
+module.exports.rejectRide = async ({ rideId, captainId }) => {
+    if (!rideId || !captainId) {
+        throw new Error('Ride ID and Captain ID are required');
+    }
+    return await dispatchService.rejectOffer({ rideId, captainId });
+};
+
+module.exports.startRide = async ({ rideId, otp, captainId }) => {
+    if (!rideId || !otp || !captainId) {
+        throw new Error('Ride ID, OTP and Captain ID are required');
+    }
+
+    const ride = await rideModel.findOne({
+        _id: rideId,
+        captain: captainId
+    }).select('+otp').populate('user', '-password').populate('captain', '-password');
+
+    if (!ride) {
+        throw new Error('Ride not found or not assigned to you');
+    }
+
+    if (ride.status !== 'ACCEPTED') {
+        throw new Error(`Cannot start ride in status: ${ride.status}`);
+    }
+
+    if (ride.otp !== otp) {
+        throw new Error('Invalid OTP');
+    }
+
+    const updatedRide = await rideModel.findByIdAndUpdate(
+        rideId,
+        { status: 'IN_PROGRESS' },
+        { new: true }
+    ).populate('user', '-password').populate('captain', '-password');
+
+    sendToUser(updatedRide.user._id, 'ride-started', {
+        message: 'Your ride has started',
+        ride: updatedRide
+    });
+
+    return updatedRide;
+};
+
+module.exports.endRide = async ({ rideId, captainId }) => {
+    if (!rideId || !captainId) {
+        throw new Error('Ride ID and Captain ID are required');
+    }
+
+    const ride = await rideModel.findOne({
+        _id: rideId,
+        captain: captainId
+    }).populate('user', '-password').populate('captain', '-password');
+
+    if (!ride) {
+        throw new Error('Ride not found');
+    }
+
+    if (ride.status !== 'IN_PROGRESS') {
+        throw new Error(`Cannot end ride in status: ${ride.status}`);
+    }
+
+    const updatedRide = await rideModel.findByIdAndUpdate(
+        rideId,
+        { status: 'COMPLETED' },
+        { new: true }
+    ).populate('user', '-password').populate('captain', '-password');
+
+    // Free captain back to active state for new rides
+    await captainModel.findByIdAndUpdate(captainId, { status: 'active' });
+
+    sendToUser(updatedRide.user._id, 'ride-ended', {
+        message: 'Your ride has completed successfully',
+        ride: updatedRide
+    });
+
+    return updatedRide;
 };

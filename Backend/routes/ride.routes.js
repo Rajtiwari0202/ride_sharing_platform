@@ -17,4 +17,25 @@ router.get('/get-fare', [
     query('destination').isString().isLength({ min: 3 }).withMessage('Invalid destination address')
 ], rideController.getFare);
 
+router.post('/confirm', [
+    authMiddleware.authCaptain,
+    body('rideId').isMongoId().withMessage('Invalid ride ID')
+], rideController.confirmRide);
+
+router.post('/reject', [
+    authMiddleware.authCaptain,
+    body('rideId').isMongoId().withMessage('Invalid ride ID')
+], rideController.rejectRide);
+
+router.post('/start-ride', [
+    authMiddleware.authCaptain,
+    body('rideId').isMongoId().withMessage('Invalid ride ID'),
+    body('otp').isString().isLength({ min: 4, max: 4 }).withMessage('OTP must be 4 digits')
+], rideController.startRide);
+
+router.post('/end-ride', [
+    authMiddleware.authCaptain,
+    body('rideId').isMongoId().withMessage('Invalid ride ID')
+], rideController.endRide);
+
 module.exports = router;
