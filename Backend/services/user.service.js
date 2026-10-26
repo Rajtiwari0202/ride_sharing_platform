@@ -1,4 +1,4 @@
-const userModel = require('../models/user.model'); // Fixed typo: added missing slash after dots
+const userModel = require('../models/user.model');
 
 module.exports.createUser = async ({
     firstname, lastname, email, password
