@@ -108,3 +108,75 @@ module.exports.logoutCaptain = async (req, res, next) => {
         next(error);
     }
 };
+
+module.exports.updateCaptainLocation = async (req, res, next) => {
+    try {
+        const errors = validationResult(req);
+        if (!errors.isEmpty()) {
+            return res.status(400).json({ errors: errors.array() });
+        }
+
+        const { latitude, longitude } = req.body;
+
+        const updatedCaptain = await captainService.updateCaptainLocation({
+            captainId: req.captain._id,
+            latitude: parseFloat(latitude),
+            longitude: parseFloat(longitude)
+        });
+
+        return res.status(200).json({
+            message: 'Location updated successfully',
+            location: updatedCaptain.location
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
+module.exports.updateCaptainStatus = async (req, res, next) => {
+    try {
+        const errors = validationResult(req);
+        if (!errors.isEmpty()) {
+            return res.status(400).json({ errors: errors.array() });
+        }
+
+        const { status } = req.body;
+
+        const updatedCaptain = await captainService.updateCaptainStatus({
+            captainId: req.captain._id,
+            status
+        });
+
+        return res.status(200).json({
+            message: 'Status updated successfully',
+            status: updatedCaptain.status
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
+module.exports.getNearbyCaptains = async (req, res, next) => {
+    try {
+        const errors = validationResult(req);
+        if (!errors.isEmpty()) {
+            return res.status(400).json({ errors: errors.array() });
+        }
+
+        const { latitude, longitude, radius, vehicleType } = req.query;
+
+        const captains = await captainService.getCaptainsInTheRadius({
+            ltd: parseFloat(latitude),
+            lng: parseFloat(longitude),
+            radiusInMeters: radius ? parseFloat(radius) : 5000,
+            vehicleType
+        });
+
+        return res.status(200).json({
+            count: captains.length,
+            captains
+        });
+    } catch (error) {
+        next(error);
+    }
+};

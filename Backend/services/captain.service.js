@@ -25,3 +25,58 @@ module.exports.createCaptain = async ({
 
     return captain;
 };
+
+module.exports.updateCaptainLocation = async ({ captainId, latitude, longitude }) => {
+    if (latitude === undefined || longitude === undefined) {
+        throw new Error('Latitude and longitude are required');
+    }
+
+    const captain = await captainModel.findByIdAndUpdate(
+        captainId,
+        {
+            location: {
+                type: 'Point',
+                coordinates: [ longitude, latitude ] // GeoJSON requires [lng, lat]
+            }
+        },
+        { new: true }
+    );
+
+    return captain;
+};
+
+module.exports.updateCaptainStatus = async ({ captainId, status }) => {
+    if (!status) {
+        throw new Error('Status is required');
+    }
+
+    const captain = await captainModel.findByIdAndUpdate(
+        captainId,
+        { status },
+        { new: true }
+    );
+
+    return captain;
+};
+
+module.exports.getCaptainsInTheRadius = async ({ ltd, lng, radiusInMeters = 5000, vehicleType }) => {
+    const query = {
+        location: {
+            $near: {
+                $geometry: {
+                    type: 'Point',
+                    coordinates: [ lng, ltd ]
+                },
+                $maxDistance: radiusInMeters
+            }
+        },
+        status: 'active'
+    };
+
+    if (vehicleType) {
+        query['vehicle.vehicleType'] = vehicleType;
+    }
+
+    const captains = await captainModel.find(query);
+    return captains;
+};
