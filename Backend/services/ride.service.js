@@ -146,7 +146,7 @@ module.exports.startRide = async ({ rideId, otp, captainId }) => {
     const updatedRide = await rideModel.findByIdAndUpdate(
         rideId,
         { status: 'IN_PROGRESS' },
-        { new: true }
+        { returnDocument: 'after' }
     ).populate('user', '-password').populate('captain', '-password');
 
     sendToUser(updatedRide.user._id, 'ride-started', {
@@ -178,7 +178,7 @@ module.exports.endRide = async ({ rideId, captainId }) => {
     const updatedRide = await rideModel.findByIdAndUpdate(
         rideId,
         { status: 'COMPLETED' },
-        { new: true }
+        { returnDocument: 'after' }
     ).populate('user', '-password').populate('captain', '-password');
 
     // Free captain back to active state for new rides

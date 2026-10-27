@@ -39,7 +39,7 @@ module.exports.updateCaptainLocation = async ({ captainId, latitude, longitude }
                 coordinates: [ longitude, latitude ] // GeoJSON requires [lng, lat]
             }
         },
-        { new: true }
+        { returnDocument: 'after' }
     );
 
     return captain;
@@ -53,7 +53,7 @@ module.exports.updateCaptainStatus = async ({ captainId, status }) => {
     const captain = await captainModel.findByIdAndUpdate(
         captainId,
         { status },
-        { new: true }
+        { returnDocument: 'after' }
     );
 
     return captain;
@@ -74,7 +74,11 @@ module.exports.getCaptainsInTheRadius = async ({ ltd, lng, radiusInMeters = 5000
     };
 
     if (vehicleType) {
-        query['vehicle.vehicleType'] = vehicleType;
+        if (vehicleType === 'moto' || vehicleType === 'motorcycle') {
+            query['vehicle.vehicleType'] = { $in: ['moto', 'motorcycle'] };
+        } else {
+            query['vehicle.vehicleType'] = vehicleType;
+        }
     }
 
     const captains = await captainModel.find(query);

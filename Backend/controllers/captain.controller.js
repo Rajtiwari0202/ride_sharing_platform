@@ -38,6 +38,12 @@ module.exports.registerCaptain = async (req, res, next) => {
             sameSite: 'strict',
             maxAge: 24 * 60 * 60 * 1000
         });
+        res.cookie('captain_token', token, {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: 'strict',
+            maxAge: 24 * 60 * 60 * 1000
+        });
 
         const captainObj = captain.toObject();
         delete captainObj.password;
@@ -75,6 +81,12 @@ module.exports.loginCaptain = async (req, res, next) => {
             sameSite: 'strict',
             maxAge: 24 * 60 * 60 * 1000
         });
+        res.cookie('captain_token', token, {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: 'strict',
+            maxAge: 24 * 60 * 60 * 1000
+        });
 
         const captainObj = captain.toObject();
         delete captainObj.password;
@@ -102,6 +114,7 @@ module.exports.logoutCaptain = async (req, res, next) => {
         }
 
         res.clearCookie('token');
+        res.clearCookie('captain_token');
 
         return res.status(200).json({ message: 'Logged out successfully' });
     } catch (error) {

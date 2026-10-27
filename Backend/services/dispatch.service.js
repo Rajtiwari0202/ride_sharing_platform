@@ -98,8 +98,8 @@ module.exports.acceptOffer = async ({ rideId, captainId }) => {
     const ride = await rideModel.findOneAndUpdate(
         { _id: rideId, status: 'REQUESTED' },
         { status: 'ACCEPTED', captain: captainId },
-        { new: true }
-    ).populate('user', '-password').populate('captain', '-password');
+        { returnDocument: 'after' }
+    ).select('+otp').populate('user', '-password').populate('captain', '-password');
 
     if (!ride) {
         throw new Error('Ride not found or already accepted by another captain');
@@ -108,20 +108,24 @@ module.exports.acceptOffer = async ({ rideId, captainId }) => {
     // Update captain operational status to on_ride
     await captainModel.findByIdAndUpdate(captainId, { status: 'on_ride' });
 
+    // Send driver copy WITHOUT the OTP (Captain must never see passenger's OTP beforehand)
+    const captainRide = ride.toObject();
+    delete captainRide.otp;
+
     // Notify Captain
     sendToCaptain(captainId, 'ride-confirmed', {
         message: 'Ride accepted successfully',
-        ride
+        ride: captainRide
     });
 
-    // Notify Rider with Captain and vehicle details
+    // Notify Rider with Captain and vehicle details AND the OTP
     sendToUser(ride.user._id, 'ride-accepted', {
         message: 'Captain assigned to your ride',
         ride,
         captain: ride.captain
     });
 
-    return ride;
+    return captainRide;
 };
 
 module.exports.rejectOffer = async ({ rideId, captainId }) => {
